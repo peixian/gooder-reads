@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"fmt"
@@ -80,24 +80,9 @@ type (
 	}
 )
 
-func main() {
-	books, err := getBooksForUser(1)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Printf("%+v", books[0].ShelvedBooks.ISBN)
-	fmt.Printf("%+v", books)
-
-	fmt.Println(setupUser("test"))
-
-}
-
-var db, err = sqlx.Connect("postgres", "user=peixianwang dbname=postgres sslmode=disable")
-
-func getBooksForUser(user int) ([]Bookshelf, error) {
+func (app *App) getBooksForUser(user int) ([]Bookshelf, error) {
 	bookshelves := []Bookshelf{}
-	err = db.Select(&bookshelves, "SELECT books.*, shelf_books.shelf_name, shelf_books.pages_read FROM shelf_books JOIN books on books.isbn = shelf_books.isbn WHERE user_id= $1", user)
+	err = app.db.Select(&bookshelves, "SELECT books.*, shelf_books.shelf_name, shelf_books.pages_read FROM shelf_books JOIN books on books.isbn = shelf_books.isbn WHERE user_id= $1", user)
 	if err != nil {
 		fmt.Println(err)
 		return bookshelves, fmt.Errorf("Error finding user w/ ID: %v", user)
@@ -106,9 +91,9 @@ func getBooksForUser(user int) ([]Bookshelf, error) {
 	return bookshelves, nil
 }
 
-func getShelvesForUser(user int) ([]ShelvedBooks, error) {
+func (app *App) getShelvesForUser(user int) ([]ShelvedBooks, error) {
 	shelves := []ShelvedBooks{}
-	err = db.Select(&shelves, "SELECT * from shelves WHERE user_id = $1", user)
+	err = app.db.Select(&shelves, "SELECT * from shelves WHERE user_id = $1", user)
 	if err != nil {
 		fmt.Println(err)
 		return shelves, fmt.Errorf("Error finding user w/ ID: %v", user)
@@ -117,9 +102,9 @@ func getShelvesForUser(user int) ([]ShelvedBooks, error) {
 	return shelves, nil
 }
 
-func getBookForISBN(isbn string) (Book, error) {
+func (app *App) getBookForISBN(isbn string) (Book, error) {
 	book := Book{}
-	err = db.Get(&book, "SELECT * FROM books WHERE isbn = $1", isbn)
+	err = app.db.Get(&book, "SELECT * FROM books WHERE isbn = $1", isbn)
 	if err != nil {
 		fmt.Println(err)
 		return book, fmt.Errorf("Error finding book with ISBN: %v", isbn)
@@ -128,9 +113,9 @@ func getBookForISBN(isbn string) (Book, error) {
 	return book, nil
 }
 
-func setupUser(password string) error {
+func (app *App) setupUser(password string) error {
 	user := User{Password: password}
-	err := db.Get(&user, "INSERT INTO users (password) VALUES ($1) RETURNING user_id", password)
+	err := app.db.Get(&user, "INSERT INTO users (password) VALUES ($1) RETURNING user_id", password)
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -142,7 +127,7 @@ func setupUser(password string) error {
 ('finished', $1),
 ('to-read', $1);
 `
-	_, err = db.Exec(setup, user.UserID)
+	_, err = app.db.Exec(setup, user.UserID)
 	if err != nil {
 		fmt.Println(err)
 		return err
