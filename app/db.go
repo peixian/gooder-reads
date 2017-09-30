@@ -1,61 +1,58 @@
 package app
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
-var schema = `
-CREATE TABLE books (
-    book_name text,
-    isbn isbn13,
-    author text,
-    genre text,
-    pages integer
-);
+// var schema = `
+// CREATE TABLE books (
+//     book_name text,
+//     isbn isbn13,
+//     author text,
+//     genre text[],
+// );
 
-CREATE TABLE shelf_books (
-    user_id integer,
-    isbn isbn13,
-    shelf_name text,
-    pages_read integer
-);
+// CREATE TABLE shelf_books (
+//     user_id integer,
+//     isbn isbn13,
+//     shelf_name text,
+//     pages_read integer
+// );
 
-CREATE TABLE shelves (
-    user_id integer,
-    shelf_name text
-);
+// CREATE TABLE shelves (
+//     user_id integer,
+//     shelf_name text
+// );
 
+// CREATE TABLE tags (
+//     user_id integer,
+//     isbn isbn13,
+//     tags text[]
+// );
 
-CREATE TABLE tags (
-    user_id integer,
-    isbn isbn13,
-    tags text[]
-);
-
-
-CREATE TABLE users (
-    user_id SERIAL,
-    password bytea,
-    user_name text,
-)
-`
+// CREATE TABLE users (
+//     user_id SERIAL,
+//     password bytea,
+//     user_name text,
+// )
+// `
 
 type (
 	Book struct {
-		BookName string `db:"book_name"`
-		ISBN     string `db:"isbn"`
-		Author   string `db:"author"`
-		Genre    string `db:"genre"`
-		Pages    int    `db:"pages"`
+		BookName string   `db:"book_name"`
+		ISBN     string   `db:"isbn"`
+		Author   string   `db:"author"`
+		Genre    []string `db:"genre"`
 	}
 
 	ShelvedBooks struct {
 		UserID    int    `db:"user_id"`
 		ISBN      string `db:"isbn"`
 		ShelfName string `db:"shelf_name"`
-		PagesRead int    `db:"pages_read"`
+		Progress  int    `db:"progress"`
 	}
 
 	Shelf struct {
@@ -106,6 +103,9 @@ func (app *App) getBookForISBN(isbn string) (Book, error) {
 	book := Book{}
 	err = app.db.Get(&book, "SELECT * FROM books WHERE isbn = $1", isbn)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return err
+		}
 		fmt.Println(err)
 		return book, fmt.Errorf("Error finding book with ISBN: %v", isbn)
 	}
@@ -132,5 +132,17 @@ func (app *App) setupUser(password string) error {
 		fmt.Println(err)
 		return err
 	}
+	return nil
+}
+
+func (app *App) insertNewBook(book Book) error {
+	err := app.db.NamedExec("INSERT INTO books (book_name, isbn, author, genre) VALUES (:book_name, :isbn, :author, :genre)", book)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (app *App) insertNewBookForUser(user User, shelf ShelvedBooks) error {
 	return nil
 }
