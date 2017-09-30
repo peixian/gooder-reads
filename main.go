@@ -11,12 +11,15 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/peixian/gooder-reads/app"
+
 	"golang.org/x/crypto/acme/autocert"
 )
 
 func main() {
 	useTLS := flag.String("tls", "", "Get a LetsEncrypt cert for `name`.")
 	addr := flag.String("addr", ":8443", "Listen for http(s) connections on `addr`.")
+	dsn := flag.String("dsn", "postgres:///gooder-reads?sslmode=disable", "Connect to database at `spec`.")
 	flag.Parse()
 
 	l, err := net.Listen("tcp", *addr)
@@ -35,13 +38,12 @@ func main() {
 		l = tls.NewListener(l, cfg)
 	}
 
-	m := http.NewServeMux()
-	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "D:", http.StatusNotImplemented)
-	})
-	srv := &http.Server{
-		Handler: m,
+	a, err := app.New(*dsn)
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	srv := &http.Server{Handler: a}
 	go func() {
 		if *useTLS != "" {
 			log.Printf("application (via https) on %q", *addr)
